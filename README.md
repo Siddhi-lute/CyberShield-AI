@@ -1,6 +1,10 @@
+<<<<<<< HEAD
 
 # CyberShield AI
 
+=======
+# CyberShield-AI
+>>>>>>> f8663bc4209dbc9f69bf05d7cf6d391a6f12eaf4
 A Python-based defensive cybersecurity project
 that analyses login activity and detects possible
 brute-force attacks.
