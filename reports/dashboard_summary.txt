@@ -1,0 +1,13 @@
+=============================================
+CYBERSHIELD AI - SECURITY DASHBOARD
+=============================================
+Total login events: 31
+Total security alerts: 11
+
+ALERT SEVERITY SUMMARY
+------------------------------
+LOW: 2
+MEDIUM: 9
+HIGH: 0
+CRITICAL: 0
+=============================================

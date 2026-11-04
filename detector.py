@@ -9,6 +9,7 @@ BASE_DIR = Path(__file__).resolve().parent
 LOG_FILE = BASE_DIR / "data" / "sample_logs.csv"
 REPORT_DIR = BASE_DIR / "reports"
 REPORT_FILE = REPORT_DIR / "security_alerts.txt"
+DASHBOARD_FILE = REPORT_DIR / "dashboard_summary.txt"
 
 # Detection settings
 FAILURE_THRESHOLD = 5
@@ -201,6 +202,46 @@ def detect_threats(events):
 
     return alerts
 
+def generate_dashboard(events, alerts):
+    """Generate and save a security dashboard summary."""
+
+    severity_counts = {
+        "LOW": 0,
+        "MEDIUM": 0,
+        "HIGH": 0,
+        "CRITICAL": 0
+    }
+
+    for alert in alerts:
+        severity = alert["severity"]
+        severity_counts[severity] += 1
+
+    summary = [
+        "=" * 45,
+        "CYBERSHIELD AI - SECURITY DASHBOARD",
+        "=" * 45,
+        f"Total login events: {len(events)}",
+        f"Total security alerts: {len(alerts)}",
+        "",
+        "ALERT SEVERITY SUMMARY",
+        "-" * 30
+    ]
+
+    for severity, count in severity_counts.items():
+        summary.append(f"{severity}: {count}")
+
+    summary.append("=" * 45)
+
+    dashboard_text = "\n".join(summary)
+
+    print("\n" + dashboard_text)
+
+    REPORT_DIR.mkdir(exist_ok=True)
+
+    with DASHBOARD_FILE.open("w", encoding="utf-8") as file:
+        file.write(dashboard_text + "\n")
+
+    print(f"\nDashboard saved to: {DASHBOARD_FILE}")
 
 def save_report(alerts):
     """Save detected alerts to a text report."""
@@ -232,6 +273,8 @@ def main():
 
     events = load_logs()
     alerts = detect_threats(events)
+
+    generate_dashboard(events, alerts)
 
     print(f"Total login events analysed: {len(events)}")
     print(f"Security alerts generated: {len(alerts)}")
