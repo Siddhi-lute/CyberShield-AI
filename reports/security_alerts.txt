@@ -44,6 +44,24 @@ Type: Success after repeated failures
 Details: Username 'user4' logged in successfully after 3 recent failures from this IP
 ----------------------------------------
 Alert #8
+Time: 2026-11-01T09:50:30+05:30
+IP: 192.168.1.80
+Type: Rapid login activity
+Details: 4 login events within 60 seconds
+----------------------------------------
+Alert #9
+Time: 2026-11-01T09:50:40+05:30
+IP: 192.168.1.80
+Type: Success after repeated failures
+Details: Username 'user7' logged in successfully after 3 recent failures from this IP
+----------------------------------------
+Alert #10
+Time: 2026-11-01T23:15:00+05:30
+IP: 192.168.1.70
+Type: Login during unusual hours
+Details: Login occurred at 23:15
+----------------------------------------
+Alert #11
 Time: End of analysis
 IP: 192.168.1.51, 192.168.1.52, 192.168.1.53, 192.168.1.54, 192.168.1.55
 Type: Username associated with multiple IPs

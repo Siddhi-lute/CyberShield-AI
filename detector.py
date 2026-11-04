@@ -14,6 +14,11 @@ REPORT_FILE = REPORT_DIR / "security_alerts.txt"
 FAILURE_THRESHOLD = 5
 TIME_WINDOW_MINUTES = 10
 
+OFF_HOURS_START = 6
+OFF_HOURS_END = 22
+
+RAPID_EVENT_THRESHOLD = 4
+RAPID_WINDOW_SECONDS = 60
 
 def load_logs():
     """Read and validate simulated login events."""
@@ -53,16 +58,17 @@ def load_logs():
     return sorted(events, key=lambda event: event["timestamp"])
 
 
-
 def detect_threats(events):
     """Detect suspicious patterns in simulated login events."""
 
     ip_failures = defaultdict(deque)
     username_failures = defaultdict(deque)
     username_ips = defaultdict(set)
+    ip_events = defaultdict(deque)
 
     alerts = []
     window = timedelta(minutes=TIME_WINDOW_MINUTES)
+    rapid_window = timedelta(seconds=RAPID_WINDOW_SECONDS)
 
     for event in events:
         ip = event["ip"]
@@ -70,16 +76,45 @@ def detect_threats(events):
         timestamp = event["timestamp"]
         status = event["status"]
 
-        # Track IP addresses used by each username
         username_ips[username].add(ip)
 
-        # 1. IP-based failed login detection
+        # 1. Unusual login timing
+        if timestamp.hour < OFF_HOURS_START or timestamp.hour >= OFF_HOURS_END:
+            alerts.append({
+                "time": timestamp.isoformat(),
+                "ip": ip,
+                "type": "Login during unusual hours",
+                "details": (
+                    f"Login occurred at {timestamp.strftime('%H:%M')}"
+                )
+            })
+
+        # 2. Rapid login activity
+        recent_events = ip_events[ip]
+
+        while recent_events and timestamp - recent_events[0] > rapid_window:
+            recent_events.popleft()
+
+        recent_events.append(timestamp)
+
+        if len(recent_events) == RAPID_EVENT_THRESHOLD:
+            alerts.append({
+                "time": timestamp.isoformat(),
+                "ip": ip,
+                "type": "Rapid login activity",
+                "details": (
+                    f"{len(recent_events)} login events "
+                    f"within {RAPID_WINDOW_SECONDS} seconds"
+                )
+            })
+
+        # 3. IP-based failed login detection
         ip_attempts = ip_failures[ip]
 
         while ip_attempts and timestamp - ip_attempts[0] > window:
             ip_attempts.popleft()
 
-        # 2. Username-based failed login detection
+        # 4. Username-based failed login detection
         user_attempts = username_failures[username]
 
         while user_attempts and timestamp - user_attempts[0] > window:
@@ -112,7 +147,7 @@ def detect_threats(events):
                     )
                 })
 
-        # 3. Successful login following repeated failures
+        # 5. Successful login following repeated failures
         elif status == "SUCCESS":
             if len(ip_attempts) >= 3:
                 alerts.append({
@@ -126,7 +161,7 @@ def detect_threats(events):
                     )
                 })
 
-    # 4. Multiple-IP analysis
+    # 6. Multiple-IP analysis
     for username, ips in username_ips.items():
         if len(ips) >= 3:
             alerts.append({
