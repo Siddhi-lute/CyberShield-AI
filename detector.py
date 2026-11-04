@@ -19,6 +19,27 @@ OFF_HOURS_END = 22
 
 RAPID_EVENT_THRESHOLD = 4
 RAPID_WINDOW_SECONDS = 60
+# Risk scoring settings
+RISK_SCORES = {
+    "Repeated failures from one IP": 25,
+    "Repeated failures for one username": 20,
+    "Success after repeated failures": 30,
+    "Username associated with multiple IPs": 15,
+    "Login during unusual hours": 10,
+    "Rapid login activity": 20
+}
+
+def calculate_severity(score):
+    """Convert risk score into a severity level."""
+
+    if score >= 60:
+        return "CRITICAL"
+    elif score >= 40:
+        return "HIGH"
+    elif score >= 20:
+        return "MEDIUM"
+    else:
+        return "LOW"
 
 def load_logs():
     """Read and validate simulated login events."""
@@ -173,9 +194,12 @@ def detect_threats(events):
                     f"{len(ips)} different IP addresses"
                 )
             })
+    # Calculate risk score and severity for every alert
+    for alert in alerts:
+        alert["risk_score"] = RISK_SCORES.get(alert["type"], 0)
+        alert["severity"] = calculate_severity(alert["risk_score"])
 
     return alerts
-
 
 
 def save_report(alerts):
@@ -194,6 +218,8 @@ def save_report(alerts):
             file.write(f"Time: {alert['time']}\n")
             file.write(f"IP: {alert['ip']}\n")
             file.write(f"Type: {alert['type']}\n")
+            file.write(f"Risk Score: {alert['risk_score']}\n")
+            file.write(f"Severity: {alert['severity']}\n")
             file.write(f"Details: {alert['details']}\n")
             file.write("-" * 40 + "\n")
 
@@ -211,10 +237,12 @@ def main():
     print(f"Security alerts generated: {len(alerts)}")
 
     for alert in alerts:
-        print("\n[ALERT]")
-        print("IP:", alert["ip"])
-        print("Threat:", alert["type"])
-        print("Details:", alert["details"])
+         print("\n[ALERT]")
+         print("IP:", alert["ip"])
+         print("Threat:", alert["type"])
+         print("Risk Score:", alert["risk_score"])
+         print("Severity:", alert["severity"])
+         print("Details:", alert["details"])
 
     save_report(alerts)
 
