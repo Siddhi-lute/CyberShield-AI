@@ -53,38 +53,94 @@ def load_logs():
     return sorted(events, key=lambda event: event["timestamp"])
 
 
-def detect_threats(events):
-    """Flag IP addresses with repeated failed login attempts."""
-    failures = defaultdict(deque)
-    alerts = []
 
+def detect_threats(events):
+    """Detect suspicious patterns in simulated login events."""
+
+    ip_failures = defaultdict(deque)
+    username_failures = defaultdict(deque)
+    username_ips = defaultdict(set)
+
+    alerts = []
     window = timedelta(minutes=TIME_WINDOW_MINUTES)
 
     for event in events:
         ip = event["ip"]
+        username = event["username"]
         timestamp = event["timestamp"]
+        status = event["status"]
 
-        attempts = failures[ip]
+        # Track IP addresses used by each username
+        username_ips[username].add(ip)
 
-        # Remove attempts outside the time window
-        while attempts and timestamp - attempts[0] > window:
-            attempts.popleft()
+        # 1. IP-based failed login detection
+        ip_attempts = ip_failures[ip]
 
-        if event["status"] == "FAILED":
-            attempts.append(timestamp)
+        while ip_attempts and timestamp - ip_attempts[0] > window:
+            ip_attempts.popleft()
 
-            if len(attempts) == FAILURE_THRESHOLD:
+        # 2. Username-based failed login detection
+        user_attempts = username_failures[username]
+
+        while user_attempts and timestamp - user_attempts[0] > window:
+            user_attempts.popleft()
+
+        if status == "FAILED":
+            ip_attempts.append(timestamp)
+            user_attempts.append(timestamp)
+
+            if len(ip_attempts) == FAILURE_THRESHOLD:
                 alerts.append({
                     "time": timestamp.isoformat(),
                     "ip": ip,
-                    "type": "Possible brute-force activity",
+                    "type": "Repeated failures from one IP",
                     "details": (
-                        f"{len(attempts)} failed attempts "
+                        f"{len(ip_attempts)} failed attempts "
                         f"within {TIME_WINDOW_MINUTES} minutes"
                     )
                 })
 
+            if len(user_attempts) == FAILURE_THRESHOLD:
+                alerts.append({
+                    "time": timestamp.isoformat(),
+                    "ip": ip,
+                    "type": "Repeated failures for one username",
+                    "details": (
+                        f"Username '{username}' had "
+                        f"{len(user_attempts)} failed attempts "
+                        f"within {TIME_WINDOW_MINUTES} minutes"
+                    )
+                })
+
+        # 3. Successful login following repeated failures
+        elif status == "SUCCESS":
+            if len(ip_attempts) >= 3:
+                alerts.append({
+                    "time": timestamp.isoformat(),
+                    "ip": ip,
+                    "type": "Success after repeated failures",
+                    "details": (
+                        f"Username '{username}' logged in successfully "
+                        f"after {len(ip_attempts)} recent failures "
+                        f"from this IP"
+                    )
+                })
+
+    # 4. Multiple-IP analysis
+    for username, ips in username_ips.items():
+        if len(ips) >= 3:
+            alerts.append({
+                "time": "End of analysis",
+                "ip": ", ".join(sorted(ips)),
+                "type": "Username associated with multiple IPs",
+                "details": (
+                    f"Username '{username}' appeared from "
+                    f"{len(ips)} different IP addresses"
+                )
+            })
+
     return alerts
+
 
 
 def save_report(alerts):
